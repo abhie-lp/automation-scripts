@@ -39,10 +39,10 @@ current_datetime: datetime
 while current_datetime := datetime.today():
     if current_datetime.weekday() in (5, 6):
         pass
-    elif not WORK_STARTED and 21 <= current_datetime.hour <= 23:
+    elif not WORK_STARTED and 9 <= current_datetime.hour < 18:
         start_office_apps()
         WORK_STARTED = True
-    elif current_datetime.hour > 23:
+    elif WORK_STARTED and current_datetime.hour >= 18:
         WORK_STARTED = False
 
     # Sleep for 15 seconds and then check again.
