@@ -29,17 +29,6 @@ file_handler.setFormatter(Formatter(
 )
 logger.addHandler(file_handler)
 
-GMAIL_LINK = config("GMAIL_LINK")
-CALENDAR_LINK = config("CALENDAR_LINK")
-CHATS_LINK = config("CHATS_LINK")
-CREDENTIALS_SHEET_LINK = config("CREDENTIALS_SHEET_LINK")
-ERP_LINK = config("ERP_LINK")
-
-TEAMS_LOCATION = config("TEAMS_LOCATION")
-OUTLOOK_LOCATION = config("OUTLOOK_LOCATION")
-
-NOTIFICATION = path.join(FILE_DIRECTORY, "notify_user.ps1")
-
 WORK_STARTED = False
 MEETING_STARTED = False
 TIMESHEET_FILLED = False
@@ -47,7 +36,10 @@ TIMESHEET_FILLED = False
 
 def notify_user(message) -> None:
     """Send the bubble notification for windows with message"""
-    run(["powershell", NOTIFICATION, f'"{message}"'], shell=True)
+    run(["powershell",
+         path.join(FILE_DIRECTORY, "notify_user.ps1"),
+         f'"{message}"'],
+        shell=True)
 
 
 def start_office_apps() -> None:
@@ -55,13 +47,14 @@ def start_office_apps() -> None:
     logger.info("Starting Chrome")
     run(
         ["start", "chrome", "--start-maximized",
-         GMAIL_LINK, CALENDAR_LINK, CHATS_LINK, CREDENTIALS_SHEET_LINK],
+         config("GMAIL_LINK"), config("CALENDAR_LINK"),
+         config("CHATS_LINK"), config("CREDENTIALS_SHEET_LINK")],
         shell=True
     )
     logger.info("Starting Microsoft Teams")
-    startfile(TEAMS_LOCATION)
+    startfile(config("TEAMS_LOCATION"))
     logger.info("Starting Outlook")
-    startfile(OUTLOOK_LOCATION)
+    startfile(config("OUTLOOK_LOCATION"))
 
 
 def start_hd_meeting(meeting_id: str):
@@ -77,13 +70,15 @@ def start_hd_meeting(meeting_id: str):
     pg.click()
     sleep(3)
 
-    # Move cursor to Meeting ID input and enter meeting id
+    # Move cursor to Meeting ID input, click and enter meeting id
     logger.info("Move to Meeting ID input")
     pg.moveTo(int(config("MEETING_ID_X")), int(config("MEETING_ID_Y")))
     logger.info("Click on Meeting ID input")
     pg.click()
     logger.info("Enter Meeting ID %s" % meeting_id)
     pg.write(meeting_id)
+
+    # Move cursor to Enter your name , click, delete all and enter name
     logger.info("Move to Your Name input")
     pg.moveTo(int(config("YOUR_NAME_X")), int(config("YOUR_NAME_Y")))
     logger.info("Click on Your Name input")
@@ -95,18 +90,22 @@ def start_hd_meeting(meeting_id: str):
     logger.info("Enter name")
     pg.typewrite(config("YOUR_NAME"))
 
+    # Move and click Join button
     logger.info("Move to Join button")
     pg.moveTo(int(config("JOIN_BTN_X")), int(config("JOIN_BTN_Y")))
     logger.info("Click on Join button")
     pg.click()
     sleep(8)
 
+    # Move to Join with Computer Audio button and click
     logger.info("Move to Join with Computer Audio button")
     pg.moveTo(int(config("JOIN_WITH_AUDIO_X")),
               int(config("JOIN_WITH_AUDIO_Y")))
     logger.info("Click on Join with Computer Audio button")
     pg.click()
     sleep(1)
+
+    # Mute HD Meeting and Maximize window
     logger.info("Mute HD Meeting using Alt + a")
     pg.hotkey("alt", "a")
     sleep(0.5)
@@ -127,7 +126,7 @@ def fill_timesheet() -> None:
     )))
     try:
         logger.info("Opening ERP link in browser")
-        driver.get(ERP_LINK)
+        driver.get(config("ERP_LINK"))
         logger.info("Waiting for login button to be clickable")
         wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,
                                                selectors("login_button"))))
@@ -204,7 +203,7 @@ def fill_timesheet() -> None:
 
 notify_user("Starting script to automate office apps.")
 
-logger.info("Starting the script")
+logger.info("Starting the loop")
 current_datetime: datetime
 while current_datetime := datetime.today():
     if current_datetime.weekday() in (5, 6):
@@ -229,10 +228,12 @@ while current_datetime := datetime.today():
     elif not MEETING_STARTED and current_datetime.hour == 18:
         if current_datetime.minute >= 13:
             logger.info("QA evening meeting")
+            notify_user("Evening QA Meeting. Launching HD Meeting")
             start_hd_meeting(config("QA_MEETING"))
             MEETING_STARTED = True
         elif current_datetime.minute >= 58:
             logger.info("Evening scrum")
+            notify_user("Evening SCRUM. Launching HD Meeting")
             start_hd_meeting(config("SCRUM_MEETING"))
             MEETING_STARTED = True
     elif MEETING_STARTED:
