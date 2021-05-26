@@ -20,9 +20,12 @@ FILE_DIRECTORY = path.abspath(path.dirname(__file__))
 log_file = path.join(FILE_DIRECTORY, "automation.log")
 logger = getLogger(__name__)
 logger.setLevel(INFO)
-file_handler = TimedRotatingFileHandler(log_file, when="midnight")
-file_handler.setFormatter(Formatter("%(asctime)s - %(message)s",
-                                    datefmt="%d-%b-%y %H:%M:%S"))
+file_handler = TimedRotatingFileHandler(
+    log_file, when="midnight", backupCount=1
+)
+file_handler.setFormatter(Formatter(
+    "%(asctime)s - %(levelname)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S")
+)
 logger.addHandler(file_handler)
 
 GMAIL_LINK = config("GMAIL_LINK")
@@ -130,13 +133,19 @@ def fill_timesheet() -> None:
 
         logger.info("Going to sleep for 900 seconds")
         sleep(900)
+        logger.info("Wakey wakey!!")
 
+        logger.info("Checking if browser is running")
         if driver.title:
             logger.info("Browser is still open. Trying to find logout button")
             driver.find_element_by_css_selector(selectors("logout_button"))\
                 .click()
-    except (NoSuchElementException, WebDriverException, TimeoutException) as e:
-        logger.error(e, exc_info=True)
+    except NoSuchElementException as e:
+        logger.error("Element not found %s " % e, exc_info=True)
+    except TimeoutException as e:
+        logger.error("Tired of waiting %s" % e, exc_info=True)
+    except WebDriverException as e:
+        logger.error("Webdriver crash %s" % e, exc_info=True)
     finally:
         logger.info("Closing driver. Peace out.")
         driver.quit()
