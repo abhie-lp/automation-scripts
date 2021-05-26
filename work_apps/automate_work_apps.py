@@ -6,6 +6,7 @@ from threading import Thread
 from time import sleep
 from logging.handlers import TimedRotatingFileHandler
 
+import pyautogui as pg
 from decouple import config, Config, RepositoryEnv
 
 from selenium.webdriver import Chrome, ChromeOptions
@@ -61,6 +62,56 @@ def start_office_apps() -> None:
     startfile(TEAMS_LOCATION)
     logger.info("Starting Outlook")
     startfile(OUTLOOK_LOCATION)
+
+
+def start_hd_meeting(meeting_id: str):
+    """Start HD Meeting with the given meeting id"""
+    logger.info("Starting HD Meeting for ID %s" % meeting_id)
+    startfile(config("HD_MEETINGS_LOCATION"))
+    sleep(3)
+
+    # Move to Join a Meeting button and click
+    logger.info("Move pointer to Join a Meeting button")
+    pg.moveTo(int(config("JOIN_MEETING_X")), int(config("JOIN_MEETING_Y")))
+    logger.info("Click on Join a Meeting Button")
+    pg.click()
+    sleep(3)
+
+    # Move cursor to Meeting ID input and enter meeting id
+    logger.info("Move to Meeting ID input")
+    pg.moveTo(int(config("MEETING_ID_X")), int(config("MEETING_ID_Y")))
+    logger.info("Click on Meeting ID input")
+    pg.click()
+    logger.info("Enter Meeting ID %s" % meeting_id)
+    pg.write(meeting_id)
+    logger.info("Move to Your Name input")
+    pg.moveTo(int(config("YOUR_NAME_X")), int(config("YOUR_NAME_Y")))
+    logger.info("Click on Your Name input")
+    pg.click()
+    logger.info("Select all text using Ctrl + a")
+    pg.hotkey("ctrl", "a")
+    logger.info("Delete current text")
+    pg.press("delete")
+    logger.info("Enter name")
+    pg.typewrite(config("YOUR_NAME"))
+
+    logger.info("Move to Join button")
+    pg.moveTo(int(config("JOIN_BTN_X")), int(config("JOIN_BTN_Y")))
+    logger.info("Click on Join button")
+    pg.click()
+    sleep(8)
+
+    logger.info("Move to Join with Computer Audio button")
+    pg.moveTo(int(config("JOIN_WITH_AUDIO_X")),
+              int(config("JOIN_WITH_AUDIO_Y")))
+    logger.info("Click on Join with Computer Audio button")
+    pg.click()
+    sleep(1)
+    logger.info("Mute HD Meeting using Alt + a")
+    pg.hotkey("alt", "a")
+    sleep(0.5)
+    logger.info("Maximize the HD Meeting window using Win + UP")
+    pg.hotkey("win", "up")
 
 
 def fill_timesheet() -> None:
@@ -159,7 +210,7 @@ while current_datetime := datetime.today():
     if current_datetime.weekday() in (5, 6):
         logger.info("Its a off day. :D")
         pass
-    elif not WORK_STARTED and 9 <= current_datetime.hour < 18:
+    elif not WORK_STARTED and 9 <= current_datetime.hour < 5:
         logger.info("Starting the work. :B")
         start_office_apps()
         WORK_STARTED = True
@@ -172,13 +223,25 @@ while current_datetime := datetime.today():
         logger.info("Timesheet filling time, running another thread.")
         Thread(target=fill_timesheet, daemon=True).start()
         TIMESHEET_FILLED = True
-    elif WORK_STARTED and current_datetime.hour >= 18:
+    elif WORK_STARTED and current_datetime.hour >= 5:
+        logger.info("Office time over. Set WORK_STARTED = False")
         WORK_STARTED = False
     elif not MEETING_STARTED and current_datetime.hour == 18:
         if current_datetime.minute >= 13:
-            pass
+            logger.info("QA evening meeting")
+            start_hd_meeting(config("QA_MEETING"))
+            MEETING_STARTED = True
         elif current_datetime.minute >= 58:
-            pass
+            logger.info("Evening scrum")
+            start_hd_meeting(config("SCRUM_MEETING"))
+            MEETING_STARTED = True
+    elif MEETING_STARTED:
+        if current_datetime.hour == 18 and 58 > current_datetime.minute >= 45:
+            logger.info("Evening QA meeting over, MEETING_STARTED = False")
+            MEETING_STARTED = False
+        elif current_datetime.hour == 19 and current_datetime.minute > 30:
+            logger.info("Evening Scrum over, MEETING_STARTED = False")
+            MEETING_STARTED = False
 
     # Sleep for 20 seconds and then check again.
     sleep(20)
